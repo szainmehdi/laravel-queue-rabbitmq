@@ -114,10 +114,7 @@ class RabbitMQQueue extends Queue implements QueueContract
         $queue = $this->getQueue($queue);
 
         $this->declareExchange($queue);
-        $this->declareQueue($queue, true, false, [
-            'x-dead-letter-exchange' => $queue,
-            'x-dead-letter-routing-key' => $queue,
-        ]);
+        $this->declareQueue($queue, true, false, $options);
         $this->bindQueue($queue, $queue, $queue);
 
         [$message, $correlationId] = $this->createMessage($payload);
@@ -203,6 +200,10 @@ class RabbitMQQueue extends Queue implements QueueContract
     {
         try {
             $queue = $this->getQueue($queue);
+
+            $this->declareExchange($queue);
+            $this->declareQueue($queue, true, false);
+            $this->bindQueue($queue, $queue, $queue);
 
             /** @var AMQPMessage|null $message */
             if ($message = $this->channel->basic_get($queue)) {
