@@ -5,7 +5,7 @@ namespace VladimirYuldashev\LaravelQueueRabbitMQ\Queue\Jobs;
 use Exception;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Queue\Job as JobContract;
-use Illuminate\Database\DetectsDeadlocks;
+use Illuminate\Database\DetectsConcurrencyErrors;
 use Illuminate\Queue\Jobs\Job;
 use Illuminate\Queue\Jobs\JobName;
 use Illuminate\Support\Str;
@@ -15,7 +15,7 @@ use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\RabbitMQQueue;
 
 class RabbitMQJob extends Job implements JobContract
 {
-    use DetectsDeadlocks;
+    use DetectsConcurrencyErrors;
 
     /**
      * Same as RabbitMQQueue, used for attempt counts.
@@ -54,12 +54,12 @@ class RabbitMQJob extends Job implements JobContract
         try {
             $payload = $this->payload();
 
-            list($class, $method) = JobName::parse($payload['job']);
+            [$class, $method] = JobName::parse($payload['job']);
 
             with($this->instance = $this->resolve($class))->{$method}($this, $payload['data']);
         } catch (Exception $exception) {
             if (
-                $this->causedByDeadlock($exception) ||
+                $this->causedByConcurrencyError($exception) ||
                 Str::contains($exception->getMessage(), ['detected deadlock'])
             ) {
                 sleep(2);
@@ -174,7 +174,7 @@ class RabbitMQJob extends Job implements JobContract
             return unserialize($body['data']['command']);
         } catch (Exception $exception) {
             if (
-                $this->causedByDeadlock($exception) ||
+                $this->causedByConcurrencyError($exception) ||
                 Str::contains($exception->getMessage(), ['detected deadlock'])
             ) {
                 sleep(2);
